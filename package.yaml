@@ -1,0 +1,50 @@
+name: sized-memory
+version: '0.0.0'
+github: "eth-r/sized-memory"
+license: PublicDomain
+author: "Promethea Raschke"
+maintainer: "Promethea Raschke"
+synopsis: "Byte arrays with type-level sizes"
+description: ""
+category: Crypto
+
+extra-source-files:
+  - CHANGELOG.md
+  - LICENSE
+  - package.yaml
+  - README.md
+  - stack.yaml
+
+library:
+  default-extensions:
+    - NoImplicitPrelude
+    - OverloadedStrings
+  ghc-options:
+    - -Wall
+    - -Werror
+  exposed-modules:
+    - Data.ByteArray.Sized
+  other-modules:
+    - Data.ByteArray.Sized.Nat
+  dependencies:
+    - base
+    - basement
+    - bytestring
+    - deepseq
+    - foundation
+    - memory
+
+tests:
+  lithium-tests:
+    source-dirs: test
+    main: Main.hs
+    # other-modules:
+    dependencies:
+      - base
+      - hspec
+      - sized-memory
+      - QuickCheck
+    ghc-options:
+      - -rtsopts
+      - -threaded
+      - -with-rtsopts=-N
