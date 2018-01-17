@@ -1,7 +1,5 @@
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
@@ -9,7 +7,6 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -100,110 +97,6 @@ A type for representing byte arrays whose length is known on the type level
 -}
 newtype ByteArrayAccess t => Sized (l :: Nat) t =
   Sized { unSized :: t } deriving (Eq, Ord, Show, ByteArrayAccess, NFData)
-
--- instance (ByteArray b) => ByteArrayAccess (Sized l b) where
---   length (Sized bs) = B.length bs
---   withByteArray (Sized bs) = B.withByteArray bs
-
-{-- fun but dangerous for obscure memory reasons
-
-instance (ByteArray b, KnownNat l) => Bits (Sized l b) where
-  (.&.) = zipWithSized (.&.)
-  (.|.) = zipWithSized (.|.)
-  xor = xorN
-  complement = mapSized complement
-  shiftL (Sized bs) by = Sized $ B.convert $ shiftBitsL (bitth by) $
-    shiftBytesL (byteth by) $ B.convert bs
-  shiftR (Sized bs) by = Sized $ B.convert $ shiftBitsR (bitth by) $
-    shiftBytesR (byteth by) $ B.convert bs
-  rotateL (Sized bs) by = Sized $ B.convert $ rotateBitsL (bitth by) $
-    rotateBytesL (byteth by) $ B.convert bs
-  rotateR (Sized bs) by = Sized $ B.convert $ rotateBitsR (bitth by) $
-    rotateBytesR (byteth by) $ B.convert bs
-  bitSizeMaybe bs = Just $ 8 * B.length bs
-  isSigned _ = False
-  testBit (Sized bs) i = testBit (B.index bs $ byteth i) $ bitth i
-  bit i = coerceToSized $ B.convert $ BS.snoc heads (bit i')
-    where (ib, i') = bitByteth i
-          heads = BS.replicate ib 0
-  popCount (Sized bs) = BS.foldl' (\acc b -> acc + popCount b) 0 $ B.convert bs
-
-bitth :: Int -> Int
-bitth x = x `mod` 8
-
-byteth :: Int -> Int
-byteth x = x `div` 8
-
-bitByteth :: Int -> (Int, Int)
-bitByteth x = x `divMod` 8
-
-shiftBytesL :: Int -> ByteString -> ByteString
-shiftBytesL by bs
-  | by >= blen = BS.replicate blen 0
-  | by < 0 = shiftBytesR (-by) bs
-  | otherwise = BS.append (BS.drop by bs) (BS.replicate by 0)
-  where blen = BS.length bs
-
-shiftBitsL :: Int -> ByteString -> ByteString
-shiftBitsL by bs
-  | by < 0 = shiftBitsR (-by) bs
-  | otherwise = BS.pack $ BS.zipWith (.|.) shifted shifted'
-  where shifted = BS.map (flip shiftL by') bs
-        shifted' = shiftBytesL 1 $ BS.map (flip shiftL $ 8 - by') bs
-        by' = bitth by
-
-shiftBytesR :: Int -> ByteString -> ByteString
-shiftBytesR by bs
-  | by >= blen = BS.replicate blen 0
-  | by < 0 = shiftBytesL (-by) bs
-  | otherwise = BS.append (BS.replicate by 0) (BS.take (blen - by) bs)
-  where blen = BS.length bs
-
-shiftBitsR :: Int -> ByteString -> ByteString
-shiftBitsR by bs
-  | by < 0 = shiftBitsL (-by) bs
-  | otherwise = BS.pack $ BS.zipWith (.|.) shifted shifted'
-  where shifted = BS.map (flip shiftR by') bs
-        shifted' = shiftBytesR 1 $ BS.map (flip shiftR $ 8 - by') bs
-        by' = bitth by
-
-rotateBytesL :: Int -> ByteString -> ByteString
-rotateBytesL by bs =
-  BS.append (BS.drop by' bs) (BS.take by' bs)
-  where blen = BS.length bs
-        by' = by `mod` blen
-
-rotateBitsL :: Int -> ByteString -> ByteString
-rotateBitsL by bs
-  | by < 0 = rotateBitsR (-by) bs
-  | otherwise = BS.pack $ BS.zipWith (.|.) rotated rotated'
-  where rotated = BS.map (flip rotateL by') bs
-        rotated' = rotateBytesL 1 $ BS.map (flip rotateL $ 8 - by') bs
-        by' = bitth by
-
-rotateBytesR :: Int -> ByteString -> ByteString
-rotateBytesR by bs =
-  BS.append (BS.drop by' bs) (BS.take by' bs)
-  where blen = BS.length bs
-        by' = blen - (by `mod` blen)
-
-rotateBitsR :: Int -> ByteString -> ByteString
-rotateBitsR by bs
-  | by < 0 = rotateBitsL (-by) bs
-  | otherwise = BS.pack $ BS.zipWith (.|.) rotated rotated'
-  where rotated = BS.map (flip rotateR by') bs
-        rotated' = rotateBytesR 1 $ BS.map (flip rotateR $ 8 - by') bs
-        by' = bitth by
-
-mapSized :: ByteArray a => (Word8 -> Word8) -> Sized l a -> Sized l a
-mapSized f (Sized bs) = Sized $ B.convert $
-  BS.map f (B.convert bs)
-
-zipWithSized :: ByteOps a b c => (Word8 -> Word8 -> Word8) -> Sized l a -> Sized l b -> Sized l c
-zipWithSized f (Sized as) (Sized bs) = Sized $ B.convert $
-  BS.pack $ BS.zipWith f (B.convert as) (B.convert bs)
-
---}
 
 {-|
 Empty sized byte array
@@ -299,7 +192,7 @@ Set a byte of the sized byte array to a specific value
 -}
 set :: forall x a y. (ByteArray a, KnownNat x) => Sized (x + y) a -> Word8 -> Sized (x + y) a
 set (Sized bs) x =
-  Sized $ B.concat [heads, (B.singleton x), tails]
+  Sized $ B.concat [heads, B.singleton x, tails]
   where heads = B.take i bs
         tails = B.drop (i + 1) bs
         i = theNat @x

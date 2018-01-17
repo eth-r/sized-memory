@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeApplications #-}
 import Test.Hspec
@@ -11,7 +10,7 @@ import qualified Data.ByteString as BS
 import Data.Memory.PtrMethods
 
 main :: IO ()
-main = hspec $ do
+main = hspec $
   describe "Sized" $ do
     it "empty" $ do
       B.length (Sized.empty @ByteString) `shouldBe` 0
@@ -23,7 +22,7 @@ main = hspec $ do
     prop "replicate" $ \x ->
       unSized (Sized.replicate @ByteString @32 x) `shouldBe` BS.replicate 32 x
 
-    it "zero" $ do
+    it "zero" $
       B.length (zero @ByteString @16) `shouldBe` 16
 
     it "copy" $ do
@@ -51,7 +50,7 @@ main = hspec $ do
       unSized (coerce @ByteString @3 "foobar") `shouldBe` "foo"
       unSized (coerce @ByteString @8 "foobar") `shouldBe` "foobar\x00\x00"
 
-    it "convert" $ do
+    it "convert" $
       unSized (convert @ByteString @B.Bytes
                (coerce @ByteString @6 "foobar"))
         `shouldBe` B.convert @ByteString "foobar"
