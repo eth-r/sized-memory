@@ -20,5 +20,5 @@ coverage:
     - cd ..
     - stack test --coverage
     - cp -r $(stack path --local-hpc-root)/sized-memory dist/phc/tix
-    - stack exec codecov-haskell sized-memory-tests
+    - codecov-haskell sized-memory-tests
   allow_failure: true
