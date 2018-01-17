@@ -6,7 +6,7 @@ author: "Promethea Raschke"
 maintainer: "Promethea Raschke"
 synopsis: "Byte arrays with type-level sizes"
 description: ""
-category: Crypto
+category: memory
 
 extra-source-files:
   - CHANGELOG.md
@@ -35,13 +35,15 @@ library:
     - memory
 
 tests:
-  lithium-tests:
+  sized-memory-tests:
     source-dirs: test
     main: Main.hs
     # other-modules:
     dependencies:
       - base
+      - bytestring
       - hspec
+      - memory
       - sized-memory
       - QuickCheck
     ghc-options:

@@ -13,6 +13,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# OPTIONS_HADDOCK hide, show-extensions #-}
 {-|
 Module      : Data.ByteArray.Sized
@@ -24,47 +25,49 @@ Stability   : experimental
 Portability : unknown
 -}
 module Data.ByteArray.Sized
-  ( type ByteOp
-  , type ByteOps
+  ( module Data.ByteArray.Sized.Nat
+  , ByteOp
+  , ByteOps
 
-  , Sized(..)
+  , Sized
+  , unSized
 
-  , emptyN
-  , allocRetN
-  , singletonN
-  , replicateN
-  , zerosN
+  , empty
+  , allocRet
+  , singleton
+  , replicate
+  , zero
 
-  , copyN
-  , copyN'
+  , copy
+  , copy'
 
-  , maybeToN
-  , coerceToN
-  , convertN
+  , asSized
+  , coerce
+  , convert
 
-  , allZerosN
-  , setN
+  , allZeros
+  , set
 
-  , appendN
-  , appendN3
+  , append
+  , append3
 
-  , takeN'
-  , takeN
+  , take
 
-  , dropN'
-  , dropN
+  , drop
 
-  , tailN'
-  , tailN
+  , tail
 
-  , splitN'
-  , splitN
-  , splitN3
+  , split
+  , split3
 
-  , xorN
+  , xor
   ) where
 
+-- import qualified Foundation as F
 import Foundation
+  ( (+)
+  , (-)
+  )
 import Basement.Compat.Base
 -- import Basement.Numerical.Multiplicative
 
@@ -78,7 +81,7 @@ import qualified Data.ByteArray as B
 -- import Data.ByteString (ByteString)
 -- import qualified Data.ByteString as BS
 import Control.DeepSeq
-import Crypto.Lithium.Util.Nat
+import Data.ByteArray.Sized.Nat
 
 {-|
 Convenience wrapper for the common constraint of byte array access in,
@@ -95,8 +98,7 @@ type ByteOps a b c = (ByteArrayAccess a, ByteArrayAccess b, ByteArray c)
 {-|
 A type for representing byte arrays whose length is known on the type level
 -}
-newtype ByteArrayAccess t =>
-  Sized (l :: Nat) t =
+newtype ByteArrayAccess t => Sized (l :: Nat) t =
   Sized { unSized :: t } deriving (Eq, Ord, Show, ByteArrayAccess, NFData)
 
 -- instance (ByteArray b) => ByteArrayAccess (Sized l b) where
@@ -219,13 +221,13 @@ singleton x = Sized $ B.singleton x
 Create sized byte array of specific byte
 -}
 replicate :: forall a x. (ByteArray a, KnownNat x) => Word8 -> Sized x a
-replicate base = Sized $ B.replicate (asNum (ByteSize @x)) base
+replicate base = Sized $ B.replicate (theNat @x) base
 
 {-|
 Create sized byte array of zeros
 -}
-zeros :: forall a x. (ByteArray a, KnownNat x) => Sized x a
-zeros = replicateSized 0
+zero :: forall a x. (ByteArray a, KnownNat x) => Sized x a
+zero = replicate 0
 
 {-|
 Allocate a sized byte array, run the initializer on it, and return
@@ -233,7 +235,7 @@ Allocate a sized byte array, run the initializer on it, and return
 allocRet :: forall a x p e. (ByteArray a, KnownNat x)
           => (Ptr p -> IO e) -> IO (e, Sized x a)
 allocRet f = do
-  let len = asNum (ByteSize @x)
+  let len = theNat @x
   (e, bs) <- B.allocRet len f
   return (e, Sized bs)
 
@@ -258,9 +260,9 @@ Convert a byte array to a sized byte array
 
 Returns 'Nothing' if the size doesn't match
 -}
-maybeToSized :: forall a n. (ByteArray a, KnownNat n) => a -> Maybe (Sized n a)
-maybeToSized bs
-  | B.length bs == asNum (ByteSize @n) = Just (Sized bs)
+asSized :: forall a n. (ByteArray a, KnownNat n) => a -> Maybe (Sized n a)
+asSized bs
+  | B.length bs == theNat @n = Just (Sized bs)
   | otherwise = Nothing
 
 {-|
@@ -278,7 +280,7 @@ coerce bs =
     LT -> Sized $ B.append bs $ B.replicate (x - len) 0
   where
     len = B.length bs
-    x = asNum (ByteSize @n)
+    x = theNat @n
 
 {-|
 Convert between sized byte arrays of same length
@@ -295,11 +297,12 @@ allZeros (Sized a) = B.all (== 0) a
 {-|
 Set a byte of the sized byte array to a specific value
 -}
-set :: (ByteArray a, KnownNat i) => proxy i -> Sized (i + (1 + x)) a -> Word8 -> Sized (i + (1 + x)) a
-set proxy bs x =
-  let (hd, tl) = splitN' proxy bs
-      tl' = appendSized (singletonSized x) $ dropSized tl
-  in appendSized hd tl'
+set :: forall x a y. (ByteArray a, KnownNat x) => Sized (x + y) a -> Word8 -> Sized (x + y) a
+set (Sized bs) x =
+  Sized $ B.concat [heads, (B.singleton x), tails]
+  where heads = B.take i bs
+        tails = B.drop (i + 1) bs
+        i = theNat @x
 
 {-|
 Append sized byte arrays
@@ -311,64 +314,34 @@ append (Sized a) (Sized b) = Sized $ B.append a b
 Append three sized byte arrays
 -}
 append3 :: ByteArray a => Sized x a -> Sized y a -> Sized z a -> Sized (x + (y + z)) a
-append3 as bs cs = appendSized as $ appendSized bs cs
-
-{-|
-Take 'proxy' number of bytes from the sized byte array
--}
-take' :: (ByteArray a, KnownNat x) => proxy x -> Sized (x + y) a -> Sized x a
-take' proxy (Sized a) = Sized $ B.take (asNum proxy) a
+append3 as bs cs = append as $ append bs cs
 
 {-|
 Take the correct number of bytes from the sized byte array
 -}
-take :: forall a x y. (ByteArray a, KnownNat x) => Sized (x + y) a -> Sized x a
-take = take' (ByteSize @x)
-
-
-{-|
-Drop 'proxy' number of bytes from the sized byte array
--}
-drop' :: (ByteArray a, KnownNat x) => proxy x -> Sized (x + y) a -> Sized y a
-drop' proxy (Sized a) = Sized $ B.drop (asNum proxy) a
+take :: forall x a y. (ByteArray a, KnownNat x) => Sized (x + y) a -> Sized x a
+take (Sized a) = Sized $ B.take (theNat @x) a
 
 {-|
 Drop the correct number of bytes from the sized byte array
 -}
-drop :: forall a x y. (ByteArray a, KnownNat x) => Sized (x + y) a -> Sized y a
-drop = drop' (ByteSize @x)
-
-
-{-|
-Take /proxy/ number of bytes from the end of the sized byte array
--}
-tail' :: (ByteArray a, KnownNat y) => proxy y -> Sized (x + y) a -> Sized y a
-tail' proxy (Sized a) = Sized $ B.drop toDrop a
-  where
-    toDrop = B.length a - asNum proxy
+drop :: forall x a y. (ByteArray a, KnownNat x) => Sized (x + y) a -> Sized y a
+drop (Sized a) = Sized $ B.drop (theNat @x) a
 
 {-|
 Take the correct number of bytes from the end of the sized byte array
 -}
-tail :: forall a x y. (ByteArray a, KnownNat y) => Sized (x + y) a -> Sized y a
-tail = tailN' (ByteSize @y)
-
-
-{-|
-Split the byte array at a length defined by 'proxy'
--}
-split' :: (ByteArray a, KnownNat x)
-        => proxy x -> Sized (x + y) a -> (Sized x a, Sized y a)
-split' proxy (Sized a) =
-  let (b, c) = B.splitAt (asNum proxy) a
-  in (Sized b, Sized c)
+tail :: forall x a y. (ByteArray a, KnownNat y) => Sized (x + y) a -> Sized y a
+tail (Sized a) = Sized $ B.drop (B.length a - theNat @y) a
 
 {-|
 Split the byte array at the correct length without a proxy argument
 -}
 split :: forall a x y. (ByteArray a, KnownNat x)
        => Sized (x + y) a -> (Sized x a, Sized y a)
-split = split' (ByteSize @x)
+split (Sized a) =
+  let (b, c) = B.splitAt (theNat @x) a
+  in (Sized b, Sized c)
 
 {-|
 Split the byte array to the correct lengths
