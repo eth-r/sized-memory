@@ -1,0 +1,23 @@
+image: nixos/nix:latest
+
+before_script:
+  - nix-channel --add https://nixos.org/channels/nixpkgs-unstable nixpkgs
+  - nix-channel --update
+  - apk --update add ca-certificates
+  - nix-env -f "<nixpkgs>" -i bash stack
+  - stack setup
+
+build:
+  script:
+    - stack test
+
+coverage:
+  script:
+    - nix-env -f "<nixpkgs>" -iA git xz gnumake
+    - git clone https://github.com/eth-r/codecov-haskell
+    - cd codecov-haskell
+    - stack install .
+    - cd ..
+    - stack test --coverage
+    - stack exec "codecov-haskell sized-memory-tests"
+  allow_failure: true

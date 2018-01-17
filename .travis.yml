@@ -1,0 +1,15 @@
+language: nix
+
+before_install:
+  - nix-env -f "<nixpkgs>" -iA bash stack git xz gnumake
+  - git clone https://github.com/eth-r/codecov-haskell
+  - cd codecov-haskell
+  - stack install .
+  - cd ..
+
+install:
+  - stack setup
+
+script:
+  - stack test --coverage --haddock
+  - stack exec "codecov-haskell sized-memory-tests"
