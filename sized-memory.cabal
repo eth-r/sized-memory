@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: f085e74102b6af778d2b650f531271b6464670fc92fae4777ea10bdea2f4ed54
+-- hash: 104571c717e43e685b39cc605ce4c5694e4d9b8fbc9940fe76efc1824d409ea0
 
 name:           sized-memory
 version:        0.0.0
@@ -13,16 +13,15 @@ bug-reports:    https://github.com/eth-r/sized-memory/issues
 author:         Promethea Raschke
 maintainer:     Promethea Raschke
 license:        PublicDomain
-license-file:   LICENSE
 build-type:     Simple
 cabal-version:  >= 1.10
 
 extra-source-files:
     CHANGELOG.md
-    LICENSE
     package.yaml
     README.md
     stack.yaml
+    UNLICENSE
 
 source-repository head
   type: git
