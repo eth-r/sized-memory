@@ -19,6 +19,6 @@ coverage:
     - stack install .
     - cd ..
     - stack test --coverage
-    - stack hpc report sized-memory-tests $(stack path --local-hpc-root)/sized-memory/all/all.tix
+    - stack hpc report sized-memory $(stack path --local-hpc-root)/sized-memory/all/all.tix
     - /root/.local/bin/codecov-haskell --tix-dir=$(stack path --local-hpc-root)/sized-memory/ --mix-dir=$(stack path --dist-dir)/hpc/ sized-memory-tests
   allow_failure: true

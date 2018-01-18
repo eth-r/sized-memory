@@ -10,7 +10,7 @@ category: memory
 
 extra-source-files:
   - CHANGELOG.md
-  - LICENSE
+  - UNLICENSE
   - package.yaml
   - README.md
   - stack.yaml
@@ -38,7 +38,6 @@ tests:
   sized-memory-tests:
     source-dirs: test
     main: Main.hs
-    # other-modules:
     dependencies:
       - base
       - bytestring
