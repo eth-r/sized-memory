@@ -12,4 +12,4 @@ install:
 
 script:
   - stack test --coverage --haddock
-  - codecov-haskell --tix-dir=$(stack path --local-hpc-root)/sized-memory/ --mix-dir=$(stack path --dist-dir)/hpc/ sized-memory-tests
+  - /home/travis/.local/bin/codecov-haskell --tix-dir=$(stack path --local-hpc-root)/sized-memory/ --mix-dir=$(stack path --dist-dir)/hpc/ sized-memory-tests
